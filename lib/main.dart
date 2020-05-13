@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:lab2/models/transaction.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import 'screens/user_transaction.dart';
 import 'screens/tabs_screen.dart';
-
+import 'screens/login.dart';
 void main() {
   runApp(MyApp());
 }
@@ -15,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Lab 2 Demo',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -37,7 +38,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (ctx) => MyHomePage(title: 'Flutter Demo Home Page'),
         UserTransactionsScreen.routeName: (ctx) => UserTransactionsScreen(),
-        TabsScreen.routeName: (ctx) => TabsScreen()
+        TabsScreen.routeName: (ctx) => TabsScreen(),
+        LoginPage.routeName: (ctx) => LoginPage(),
       },
     );
   }
@@ -61,9 +63,7 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage>  with TickerProviderStateMixin{
-
-
+class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   int _counter = 0;
   Animation _arrowAnimation;
   AnimationController _arrowAnimationController;
@@ -74,8 +74,13 @@ class _MyHomePageState extends State<MyHomePage>  with TickerProviderStateMixin{
     _arrowAnimationController =
         AnimationController(vsync: this, duration: Duration(milliseconds: 300));
     _arrowAnimation =
-        Tween(begin: 0.0, end: 180).animate(_arrowAnimationController);
-  }  
+        Tween(begin: 0.0, end: 180.0).animate(_arrowAnimationController);
+  }
+
+  @override
+  void dispose(){
+    super.dispose();
+  }
 
   void _incrementCounter() {
     // setState(() {
@@ -98,8 +103,13 @@ class _MyHomePageState extends State<MyHomePage>  with TickerProviderStateMixin{
   }
 
   addIntToSF() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setInt('intValue', 123);
+    SharedPreferences.getInstance().then((value) {
+        SharedPreferences prefs = value;
+        prefs.setInt('intValue', 123);
+        prefs.setBool('isLogin', true);
+        prefs.setString('username', 'username');
+    });
+    
   }
 
   Future<int> getIntValuesSF() async {
@@ -159,7 +169,7 @@ class _MyHomePageState extends State<MyHomePage>  with TickerProviderStateMixin{
               child: Text("Test HTTP Post"),
               onPressed: () {
                 const url =
-                    'https://flutterlab-12292.firebaseio.com/movies.json';
+                    'https://labtest-8642e.firebaseio.com/test.json';
                 http.post(
                   url,
                   body: json.encode({
@@ -176,10 +186,23 @@ class _MyHomePageState extends State<MyHomePage>  with TickerProviderStateMixin{
               child: Text("Test HTTP Get"),
               onPressed: () {
                 http
-                    .get('https://flutterlab-12292.firebaseio.com/movies.json')
+                    .get('https://labtest-8642e.firebaseio.com/test.json')
                     .then((response) {
-                  print(response.body);
+                  // print(json.decode(response.body).runtimeType);
+                   final extractedData = json.decode(response.body) as Map<String, dynamic>;
+                  final List<Transaction> transaction = [];
+                  extractedData.forEach((prodId, prodData) {
+                    // print(prodData);
+                    transaction.add(Transaction(
+                      id: prodId,
+                      title: prodData['title'],
+                      amount: double.parse(prodData['price']),
+                      date: DateTime.now(),
+                    ));
+                  });
+                  print(transaction);
                 });
+                
               },
             ),
             FlatButton(
@@ -205,13 +228,57 @@ class _MyHomePageState extends State<MyHomePage>  with TickerProviderStateMixin{
               onPressed: () {
                 getIntValuesSF().then((value) => print('return val $value'));
               },
+            ),
+            FlatButton(
+              child: Text("Log in"),
+              onPressed: () {
+                Navigator.of(context).pushNamed(
+                  LoginPage.routeName,
+                  arguments: {
+                  },
+                );
+              },
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                AnimatedBuilder(
+                  animation: _arrowAnimationController,
+                  builder: (context, child) => Transform.rotate(
+                    angle: _arrowAnimation.value,
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 50.0,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+                OutlineButton(
+                  color: Colors.white,
+                  textColor: Colors.black,
+                  padding: const EdgeInsets.all(12.0),
+                  child: Text('Start Icon Animation'),
+                  onPressed: () {
+                    _arrowAnimationController.isCompleted
+                        ? _arrowAnimationController.reverse()
+                        : _arrowAnimationController.forward();
+                  },
+                  splashColor: Colors.red,
+                )
+              ],
             )
           ],
         ),
       )),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          navigateToInside(context);
+          Navigator.of(context).pushNamed(
+            UserTransactionsScreen.routeName,
+            arguments: {
+              'id': 'xx',
+              'title': 'yy',
+            },
+          );
         },
         tooltip: 'Increment',
         child: Text('Transaction'),
